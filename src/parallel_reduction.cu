@@ -22,7 +22,7 @@ int main(void)
   std::mt19937 generator_(random_device_());
   std::uniform_real_distribution<float> distribution_(-1.0, 1.0);
 
-  const int kNumElements = 25600;
+  const int kNumElements = 2048;
   const int kNumBytes = kNumElements * sizeof(float);
 
   std::cout << "Generating random vector in range [-1.0f, 1.0f] of " << kNumElements << " elements...\n";
@@ -35,8 +35,8 @@ int main(void)
 
   std::cout << "Executing sum reduction in CPU...\n";
 
-  std::function<float(float,float)> sum_operator_ = [](float a, float b) { return a+b; };
-  float result_ = cpu_reduction<float>(h_input_, sum_operator_, 0.0f);
+  std::function<float(float,float)> cpu_sum_operator_ = [] (float a, float b) -> float { return a+b; };
+  float result_ = cpu_reduction<float>(h_input_, cpu_sum_operator_, 0.0f);
 
   std::cout << "Result is: " << result_ << "\n";
 
@@ -63,8 +63,13 @@ int main(void)
   dim3 tpb_(threads_per_block_, 1, 1);
   dim3 bpg_(blocks_per_grid_, 1, 1);
 
-  reduce_kernel<<<bpg_, tpb_>>>(d_input_, d_intermediate_);
-  reduce_kernel<<<1, tpb_>>>(d_intermediate_, d_output_);
+  // Naive GPU implementation
+  gpu_reduction_naive<<<bpg_, tpb_>>>(d_input_, d_intermediate_);
+  gpu_reduction_naive<<<1, tpb_>>>(d_intermediate_, d_output_);
+
+  // Coalesced GPU implementation
+  //gpu_reduction_coalesced<<<bpg_, tpb_>>>(d_input_, d_intermediate_);
+  //gpu_reduction_coalesced<<<1, tpb_>>>(d_intermediate_, d_output_);
 
   cudaMemcpy(&h_output_, d_output_, sizeof(float), cudaMemcpyDeviceToHost);
 
