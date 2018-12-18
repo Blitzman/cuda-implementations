@@ -35,6 +35,30 @@ __global__ void gpu_reduction_coalesced(T * input, T * output)
     output[blockIdx.x] = input[idx_];
 }
 
+template <typename T>
+__global__ void gpu_reduction_shmem(T* input, T* output)
+{
+  extern __shared__ float sh_input_[];
+
+  int idx_ = threadIdx.x + blockDim.x * blockIdx.x;
+
+  sh_input_[threadIdx.x] = input[idx_];
+  __syncthreads();
+
+  for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
+  {
+    if (threadIdx.x < s)
+      sh_input_[threadIdx.x] += sh_input_[threadIdx.x + s];
+    
+    __syncthreads();
+  }
+
+  if (threadIdx.x == 0)
+    output[blockIdx.x] = sh_input_[0];
+}
+
+template __global__ void gpu_reduction_naive<float>(float*, float*);
 template __global__ void gpu_reduction_coalesced<float>(float*, float*);
+template __global__ void gpu_reduction_shmem<float>(float*, float*);
 
 #endif

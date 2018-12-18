@@ -22,7 +22,7 @@ int main(void)
   std::mt19937 generator_(random_device_());
   std::uniform_real_distribution<float> distribution_(-1.0, 1.0);
 
-  const int kNumElements = 2048;
+  const int kNumElements = 32768;
   const int kNumBytes = kNumElements * sizeof(float);
 
   std::cout << "Generating random vector in range [-1.0f, 1.0f] of " << kNumElements << " elements...\n";
@@ -63,13 +63,20 @@ int main(void)
   dim3 tpb_(threads_per_block_, 1, 1);
   dim3 bpg_(blocks_per_grid_, 1, 1);
 
+  std::cout << "Threads Per Block: " << tpb_.x << "\n";
+  std::cout << "Blocks Per Grid: " << bpg_.x << "\n";
+
   // Naive GPU implementation
-  gpu_reduction_naive<<<bpg_, tpb_>>>(d_input_, d_intermediate_);
-  gpu_reduction_naive<<<1, tpb_>>>(d_intermediate_, d_output_);
+  //gpu_reduction_naive<<<bpg_, tpb_>>>(d_input_, d_intermediate_);
+  //gpu_reduction_naive<<<1, bpg_>>>(d_intermediate_, d_output_);
 
   // Coalesced GPU implementation
   //gpu_reduction_coalesced<<<bpg_, tpb_>>>(d_input_, d_intermediate_);
-  //gpu_reduction_coalesced<<<1, tpb_>>>(d_intermediate_, d_output_);
+  //gpu_reduction_coalesced<<<1, bpg_>>>(d_intermediate_, d_output_);
+
+  // Shared Memory GPU implementation
+  gpu_reduction_shmem<<<bpg_, tpb_, tpb_.x * sizeof(float)>>>(d_input_, d_intermediate_);
+  gpu_reduction_shmem<<<1, bpg_, bpg_.x * sizeof(float)>>>(d_intermediate_, d_output_);
 
   cudaMemcpy(&h_output_, d_output_, sizeof(float), cudaMemcpyDeviceToHost);
 
