@@ -1,5 +1,5 @@
-#ifndef KERNEL_PARALLEL_REDUCTION_
-#define KERNEL_PARALLEL_REDUCTION_
+#ifndef PARALLEL_REDUCTION_CUH_
+#define PARALLEL_REDUCTION_CUH_
 
 template <typename T>
 __global__ void gpu_reduction_naive(T * input, T * output)
@@ -38,7 +38,7 @@ __global__ void gpu_reduction_coalesced(T * input, T * output)
 template <typename T>
 __global__ void gpu_reduction_shmem(T* input, T* output)
 {
-  extern __shared__ float sh_input_[];
+  extern __shared__ T sh_input_[];
 
   int idx_ = threadIdx.x + blockDim.x * blockIdx.x;
 

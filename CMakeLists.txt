@@ -41,6 +41,12 @@ cuda_add_executable(
   src/parallel_reduction.cu
   kernels/parallel_reduction.cuh
 )
+cuda_add_executable(
+  parallel_histogram
+  src/parallel_histogram.cu
+  kernels/parallel_histogram.cuh
+)
+
 
 # For linking ...
 # Specify target & libraries to link it with

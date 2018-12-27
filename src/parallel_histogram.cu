@@ -5,44 +5,48 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#include "parallel_reduction.cuh"
+#include "parallel_histogram.cuh"
 
-template <typename T>
-T cpu_reduction(const std::vector<T> & input, std::function<T(T,T)> op, T acc)
+void cpu_histogram(const std::vector<int> & input, std::vector<int> & rHistogram, int bins)
 {
   for (int i = 0; i < input.size(); ++i)
-    acc = op(acc, input[i]);
-
-  return acc;
+  {
+    int bin_ = input[i] % bins;
+    rHistogram[bin_]++;
+  }
 }
 
 int main(void)
 {
   std::random_device random_device_;
   std::mt19937 generator_(random_device_());
-  std::uniform_real_distribution<float> distribution_(-1.0, 1.0);
+  std::uniform_int_distribution<int> distribution_(0, 255);
 
   const int kNumElements = 32768;
-  const int kNumBytes = kNumElements * sizeof(float);
+  const int kNumBytes = kNumElements * sizeof(int);
+  const int kNumBins = 256;
 
-  std::cout << "Generating random vector in range [-1.0f, 1.0f] of " << kNumElements << " elements...\n";
+  std::cout << "Generating random vector in range [0, 255] of " << kNumElements << " elements...\n";
 
-  std::vector<float> h_input_(kNumElements);
+  std::vector<int> h_input_(kNumElements);
   for (int i = 0; i < h_input_.size(); ++i)
     h_input_[i] = distribution_(generator_);
 
   // --- CPU ---------------------------------------------------------------- //
 
-  std::cout << "Executing sum reduction in CPU...\n";
+  std::cout << "Executing histogram in CPU...\n";
 
-  std::function<float(float,float)> cpu_sum_operator_ = [] (float a, float b) -> float { return a+b; };
-  float result_ = cpu_reduction<float>(h_input_, cpu_sum_operator_, 0.0f);
+  std::vector<int> h_histogram_(kNumBins);
+  cpu_histogram(h_input_, h_histogram_, kNumBins);
 
-  std::cout << "Result is: " << result_ << "\n";
+  std::cout << "Result is: \n";
+  for (int i = 0; i < kNumBins; ++i)
+    std::cout << "[" << i << "]:" << h_histogram_[i] << " ";
+  std::cout << "\n";
 
   // --- GPU ---------------------------------------------------------------- //
 
-  std::cout << "Executing sum reduction in GPU...\n";
+  /* std::cout << "Executing sum reduction in GPU...\n";
   
   const int threads_per_block_ = 1024;
   const int blocks_per_grid_ = kNumElements / threads_per_block_;
@@ -86,5 +90,5 @@ int main(void)
 
   cudaDeviceReset();
 
-  std::cout << "Result is: " << h_output_ << "\n";
+  std::cout << "Result is: " << h_output_ << "\n"; */
 }
