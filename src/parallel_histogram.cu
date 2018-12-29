@@ -7,7 +7,7 @@
 
 #include "parallel_histogram.cuh"
 
-void cpu_histogram(const std::vector<int> & input, std::vector<int> & rHistogram, int bins)
+void cpu_histogram(const std::vector<unsigned int> & input, std::vector<unsigned int> & rHistogram, unsigned int bins)
 {
   for (int i = 0; i < input.size(); ++i)
   {
@@ -20,15 +20,15 @@ int main(void)
 {
   std::random_device random_device_;
   std::mt19937 generator_(random_device_());
-  std::uniform_int_distribution<int> distribution_(0, 255);
+  std::uniform_int_distribution<unsigned int> distribution_(0, 255);
 
-  const int kNumElements = 32768;
-  const int kNumBytes = kNumElements * sizeof(int);
-  const int kNumBins = 256;
+  const unsigned long kNumElements = 32768;
+  const unsigned int kNumBytes = kNumElements * sizeof(unsigned int);
+  const unsigned int kNumBins = 256;
 
   std::cout << "Generating random vector in range [0, 255] of " << kNumElements << " elements...\n";
 
-  std::vector<int> h_input_(kNumElements);
+  std::vector<unsigned int> h_input_(kNumElements);
   for (int i = 0; i < h_input_.size(); ++i)
     h_input_[i] = distribution_(generator_);
 
@@ -36,7 +36,7 @@ int main(void)
 
   std::cout << "Executing histogram in CPU...\n";
 
-  std::vector<int> h_histogram_(kNumBins);
+  std::vector<unsigned int> h_histogram_(kNumBins);
   cpu_histogram(h_input_, h_histogram_, kNumBins);
 
   std::cout << "Result is: \n";
@@ -46,21 +46,20 @@ int main(void)
 
   // --- GPU ---------------------------------------------------------------- //
 
-  /* std::cout << "Executing sum reduction in GPU...\n";
+  std::cout << "Executing histogram in GPU...\n";
   
   const int threads_per_block_ = 1024;
   const int blocks_per_grid_ = kNumElements / threads_per_block_;
   
   cudaSetDevice(0);
 
-  float h_output_ = 0.0f;
-  float *d_input_;
-  float *d_intermediate_;
-  float *d_output_;
+  unsigned int *d_input_;
+  unsigned int *d_histogram_;
+  
+  std::vector<int> h_dhistogram_(kNumBins);
 
   cudaMalloc((void**)&d_input_, kNumBytes);
-  cudaMalloc((void**)&d_intermediate_, kNumBytes); // Overallocated
-  cudaMalloc((void**)&d_output_, sizeof(float));
+  cudaMalloc((void**)&d_histogram_, sizeof(int) * kNumBins); // Overallocated
 
   cudaMemcpy(d_input_, h_input_.data(), kNumBytes, cudaMemcpyHostToDevice);
 
@@ -71,24 +70,28 @@ int main(void)
   std::cout << "Blocks Per Grid: " << bpg_.x << "\n";
 
   // Naive GPU implementation
-  gpu_reduction_naive<<<bpg_, tpb_>>>(d_input_, d_intermediate_);
-  gpu_reduction_naive<<<1, bpg_>>>(d_intermediate_, d_output_);
+  //gpu_histogram_naive<<<bpg_, tpb_>>>(d_input_, d_histogram_, kNumBins);
 
-  // Coalesced GPU implementation
-  //gpu_reduction_coalesced<<<bpg_, tpb_>>>(d_input_, d_intermediate_);
-  //gpu_reduction_coalesced<<<1, bpg_>>>(d_intermediate_, d_output_);
+  // Atomic GPU implementation
+  //gpu_histogram_atomic<<<bpg_, tpb_>>>(d_input_, d_histogram_, kNumBins);
 
-  // Shared Memory GPU implementation
-  //gpu_reduction_shmem<<<bpg_, tpb_, tpb_.x * sizeof(float)>>>(d_input_, d_intermediate_);
-  //gpu_reduction_shmem<<<1, bpg_, bpg_.x * sizeof(float)>>>(d_intermediate_, d_output_);
+  // Strided GPU implementation
+  dim3 tpb_strided_(threads_per_block_, 1, 1);
+  dim3 bpg_strided_(256, 1, 1);
+  //gpu_histogram_atomic_strided<<<bpg_strided_, tpb_strided_>>>(d_input_, d_histogram_, kNumBins, kNumElements);
 
-  cudaMemcpy(&h_output_, d_output_, sizeof(float), cudaMemcpyDeviceToHost);
+  // Strided privatized GPU  implementation
+  gpu_histogram_atomic_strided_privatized<<<bpg_strided_, tpb_strided_, kNumBins * sizeof(unsigned int)>>>(d_input_, d_histogram_, kNumBins, kNumElements);
+
+  cudaMemcpy(h_dhistogram_.data(), d_histogram_, sizeof(int) * kNumBins, cudaMemcpyDeviceToHost);
 
   cudaFree(d_input_);
-  cudaFree(d_intermediate_);
-  cudaFree(d_output_);
+  cudaFree(d_histogram_);
 
   cudaDeviceReset();
 
-  std::cout << "Result is: " << h_output_ << "\n"; */
+  std::cout << "Result is: \n";
+  for (int i = 0; i < kNumBins; ++i)
+    std::cout << "[" << i << "]:" << h_dhistogram_[i] << " ";
+  std::cout << "\n";
 }
