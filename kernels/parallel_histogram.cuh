@@ -2,36 +2,36 @@
 #define PARALLEL_HISTOGRAM_CUH_
 
 __global__
-void gpu_histogram_naive(unsigned int* input, unsigned int* histogram, unsigned int bins)
+void gpu_histogram_naive(unsigned int* input, unsigned int* histogram, unsigned int binWidth)
 {
   int idx_ = threadIdx.x + blockIdx.x * blockDim.x;
-  int bin_ = input[idx_] % bins;
+  int bin_ = input[idx_] / binWidth;
   histogram[bin_] += 1;
 }
 
 __global__
-void gpu_histogram_atomic(unsigned int* input, unsigned int* histogram, unsigned int bins)
+void gpu_histogram_atomic(unsigned int* input, unsigned int* histogram, unsigned int binWidth)
 {
   int idx_ = threadIdx.x + blockIdx.x * blockDim.x;
-  int bin_ = input[idx_] % bins;
+  int bin_ = input[idx_] / binWidth;
   atomicAdd(&(histogram[bin_]), 1);
 }
 
 __global__
-void gpu_histogram_atomic_strided(unsigned int* input, unsigned int* histogram, unsigned int bins, unsigned long n)
+void gpu_histogram_atomic_strided(unsigned int* input, unsigned int* histogram, unsigned int binWidth, unsigned long n)
 {
   int idx_ = threadIdx.x + blockIdx.x * blockDim.x;
   int stride_ = blockDim.x * gridDim.x;
 
   for (unsigned long i = idx_; i < n; i += stride_)
   {
-    unsigned int bin_ = input[idx_] % bins;
+    unsigned int bin_ = input[idx_] / binWidth;
     atomicAdd(&(histogram[bin_]), 1);
   }
 }
 
 __global__
-void gpu_histogram_atomic_strided_privatized(unsigned int* input, unsigned int* histogram, unsigned int bins, unsigned long n)
+void gpu_histogram_atomic_strided_privatized(unsigned int* input, unsigned int* histogram, unsigned int bins, unsigned int binWidth, unsigned long n)
 {
   extern __shared__ unsigned int histogram_private_[];
 
@@ -45,7 +45,7 @@ void gpu_histogram_atomic_strided_privatized(unsigned int* input, unsigned int* 
 
   for (unsigned long i = idx_; i < n; i += stride_)
   {
-    int bin_ = input[idx_] % bins;
+    int bin_ = input[idx_] / binWidth;
     atomicAdd(&(histogram_private_[bin_]), 1);
   }
 

@@ -7,11 +7,11 @@
 
 #include "parallel_histogram.cuh"
 
-void cpu_histogram(const std::vector<unsigned int> & input, std::vector<unsigned int> & rHistogram, unsigned int bins)
+void cpu_histogram(const std::vector<unsigned int> & input, std::vector<unsigned int> & rHistogram, unsigned int binWidth)
 {
   for (int i = 0; i < input.size(); ++i)
   {
-    int bin_ = input[i] % bins;
+    int bin_ = input[i] / binWidth;
     rHistogram[bin_]++;
   }
 }
@@ -24,7 +24,8 @@ int main(void)
 
   const unsigned long kNumElements = 32768;
   const unsigned int kNumBytes = kNumElements * sizeof(unsigned int);
-  const unsigned int kNumBins = 256;
+  const unsigned int kNumBins = 8;
+  const unsigned int kBinWidth = 32;
 
   std::cout << "Generating random vector in range [0, 255] of " << kNumElements << " elements...\n";
 
@@ -37,7 +38,7 @@ int main(void)
   std::cout << "Executing histogram in CPU...\n";
 
   std::vector<unsigned int> h_histogram_(kNumBins);
-  cpu_histogram(h_input_, h_histogram_, kNumBins);
+  cpu_histogram(h_input_, h_histogram_, kBinWidth);
 
   std::cout << "Result is: \n";
   for (int i = 0; i < kNumBins; ++i)
@@ -70,18 +71,18 @@ int main(void)
   std::cout << "Blocks Per Grid: " << bpg_.x << "\n";
 
   // Naive GPU implementation
-  //gpu_histogram_naive<<<bpg_, tpb_>>>(d_input_, d_histogram_, kNumBins);
+  //gpu_histogram_naive<<<bpg_, tpb_>>>(d_input_, d_histogram_, kBinWidth);
 
   // Atomic GPU implementation
-  //gpu_histogram_atomic<<<bpg_, tpb_>>>(d_input_, d_histogram_, kNumBins);
+  //gpu_histogram_atomic<<<bpg_, tpb_>>>(d_input_, d_histogram_, kBinWidth);
 
   // Strided GPU implementation
   dim3 tpb_strided_(threads_per_block_, 1, 1);
   dim3 bpg_strided_(256, 1, 1);
-  //gpu_histogram_atomic_strided<<<bpg_strided_, tpb_strided_>>>(d_input_, d_histogram_, kNumBins, kNumElements);
+  //gpu_histogram_atomic_strided<<<bpg_strided_, tpb_strided_>>>(d_input_, d_histogram_, kBinWidth, kNumElements);
 
   // Strided privatized GPU  implementation
-  gpu_histogram_atomic_strided_privatized<<<bpg_strided_, tpb_strided_, kNumBins * sizeof(unsigned int)>>>(d_input_, d_histogram_, kNumBins, kNumElements);
+  gpu_histogram_atomic_strided_privatized<<<bpg_strided_, tpb_strided_, kNumBins * sizeof(unsigned int)>>>(d_input_, d_histogram_, kNumBins, kBinWidth, kNumElements);
 
   cudaMemcpy(h_dhistogram_.data(), d_histogram_, sizeof(int) * kNumBins, cudaMemcpyDeviceToHost);
 
