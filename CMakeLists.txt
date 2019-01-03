@@ -46,6 +46,11 @@ cuda_add_executable(
   src/parallel_histogram.cu
   kernels/parallel_histogram.cuh
 )
+cuda_add_executable(
+  parallel_scan
+  src/parallel_scan.cu
+  kernels/parallel_scan.cuh
+)
 
 
 # For linking ...
