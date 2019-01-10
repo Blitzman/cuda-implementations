@@ -76,7 +76,8 @@ int main(void)
   std::cout << "Blocks Per Grid: " << bpg_.x << "\n";
 
   // Naive GPU implementation
-  gpu_scan_hillissteele<<<bpg_, tpb_, kNumBytes>>>(d_input_, d_output_, kNumElements);
+  //gpu_scan_hillissteele<<<bpg_, tpb_, kNumBytes>>>(d_input_, d_output_, kNumElements);
+  gpu_scan_blelloch<<<bpg_, tpb_, kNumBytes>>>(d_input_, d_output_, kNumElements);
 
   cudaMemcpy(h_doutput_.data(), d_output_, kNumBytes, cudaMemcpyDeviceToHost);
 
@@ -89,4 +90,15 @@ int main(void)
   for (int i = 0; i < h_doutput_.size(); ++i)
     std::cout << "[" << i << "]:" << h_doutput_[i] << " ";
   std::cout << "\n";
+
+  // Check results
+
+  for (int i = 0; i < h_output_.size(); ++i)
+  {
+    if (h_output_[i] != h_doutput_[i])
+    {
+      std::cout << "Found discrepancy at " << i << "\n";
+      break;
+    }
+  }
 }
