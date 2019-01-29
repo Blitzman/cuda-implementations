@@ -76,8 +76,7 @@ int main(void)
   std::cout << "Blocks Per Grid: " << bpg_.x << "\n";
 
   // Naive GPU implementation
-  //gpu_scan_hillissteele<<<bpg_, tpb_, kNumBytes>>>(d_input_, d_output_, kNumElements);
-  gpu_scan_blelloch<<<bpg_, tpb_, kNumBytes>>>(d_input_, d_output_, kNumElements);
+  gpu_scan_hillissteele<<<bpg_, tpb_, kNumBytes>>>(d_input_, d_output_, kNumElements);
 
   cudaMemcpy(h_doutput_.data(), d_output_, kNumBytes, cudaMemcpyDeviceToHost);
 

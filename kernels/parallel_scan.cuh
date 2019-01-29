@@ -56,4 +56,51 @@ void gpu_scan_blelloch(int* input, int* output, int n)
     output[idx_] = sh_data_[threadIdx.x];
 }
 
+__global__
+void gpu_scan_blellochv2(int* input, int* output, int n)
+{
+    extern __shared__ float sh_data_[];
+
+    int idx_ = threadIdx.x;
+    int offset_ = 1;
+
+    sh_data_[idx_] = input[idx_];
+    __syncthreads();
+
+    for (unsigned int d = n >> 1; d > 0; d >>= 1)
+    {
+        if (idx_ < d)
+        {
+            int idx_l_ = offset_ * (2 * idx_ + 1) - 1;
+            int idx_r_ = offset_ * (2 * idx_ + 2) - 1;
+            sh_data_[idx_r_] += sh_data_[idx_l_];
+        }
+
+        offset_ <<= 1;
+        __syncthreads();
+    }
+
+    if (idx_ == 0)
+        sh_data_[n-1] = 0;
+    __syncthreads();
+
+    for (unsigned int d = 1; d < n; d <<= 1)
+    {
+        offset_ >>= 1;
+
+        if (idx_ < d)
+        {
+            int idx_l_ = offset_ * (2 * idx_ + 1) - 1;
+            int idx_r_ = offset_ * (2 * idx_ + 2) - 1;
+
+            float t_ = sh_data_[idx_l_];
+            sh_data_[idx_l_] = sh_data_[idx_r_];
+            sh_data_[idx_r_] += t_;
+        }
+        __syncthreads();
+    }
+
+    output[idx_] = sh_data_[idx_];
+}
+
 #endif
